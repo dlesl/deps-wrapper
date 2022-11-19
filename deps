@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+deps_cache="$HOME/.deps-wrapper"
+deps_version="1.11.1.1200"
+
+target="$deps_cache/deps.clj-$deps_version-standalone.jar"
+
+deps_download_url="https://github.com/borkdude/deps.clj/releases/download/v$deps_version/deps.clj-$deps_version-standalone.jar"
+
+if [ ! -f "$target" ]; then
+    mkdir -p "$deps_cache"
+    deps_tmp="$(mktemp -d)"
+    trap 'rm -rf -- "$deps_tmp"' EXIT
+    deps_download_helper="$deps_tmp/Download.java"
+    echo "Downloading $deps_download_url to $target"
+    cat <<EOF > "$deps_download_helper"
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+public class Download {
+    public static void main(String[] args) throws Exception {
+        Files.copy(new URL(args[0]).openStream(), Path.of(args[1]));
+    }
+}
+EOF
+    java "$deps_download_helper" "$deps_download_url" "$deps_tmp/deps.clj.jar"
+    mv "$deps_tmp/deps.clj.jar" "$target"
+fi
+
+exec java -jar "$target" "$@"
